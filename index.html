@@ -24,6 +24,7 @@
     if (isCalibrated){
       return;
     }
+    // TODO: smooth maxLux/minLux over time, passive recalibration
     maxLux = Math.max(value, maxLux);
     minLux = Math.min(value, minLux);
   }
@@ -45,9 +46,13 @@
     }
     canvas.width = document.body.offsetWidth;
     canvas.height = 480;
-    drawContext = canvas.getContext('2d');
+    context = canvas.getContext('2d');
+
+    context.beginPath();
+    context.moveTo(0, canvas.height/2);
 
     var scale = canvas.height - canvas.height / 2;
+    var step = canvas.width * 0.5 / buffer.length;
 
     for (var i = 0; i < buffer.length; i++) {
       var value = buffer[i];
@@ -56,13 +61,20 @@
       var pValue = (nValue * 240) + canvas.height / 2;
       console.log(value, nValue, pValue);
 
-      var height = -1 * pValue;
-      var width  = 5;
-      var xOffset = canvas.width / 2 - i*5;
-      var yOffset = 480 * 1.25;
-      drawContext.fillStyle = 'black';
-      drawContext.fillRect(xOffset, yOffset, width, height);
+      // var height = -1 * pValue;
+      // var width  = 5;
+      // var xOffset = canvas.width / 2 - i*5;
+      // var yOffset = 480 * 1.25;
+      // context.fillStyle = 'black';
+      // context.fillRect(xOffset, yOffset, width, height);
+
+      context.lineWidth = 3;
+      context.strokeStyle = '#ff0000';
+      context.lineCap = 'round';
+      context.lineTo(i * step, 480 - pValue);
     }
+
+    context.stroke()
   }
 
   window.addEventListener('devicelight', onLightChange);
