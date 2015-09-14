@@ -5,6 +5,76 @@
   <title>Optical Morse Code</title>
 </head>
 <body>
+  <h1>Optical Morse Code + <em>DeviceLight API</em></h1>
 
+  <script>
+
+  var minLux = Infinity,
+      maxLux = 0,
+      currLux = 0,
+      isCalibrated = false,
+      buffer = [], timeout;
+
+  function onLightChange(e){
+      currLux = event.value;
+      calibrate(event.value);
+  }
+
+  function calibrate(value){
+    if (isCalibrated){
+      return;
+    }
+    maxLux = Math.max(value, maxLux);
+    minLux = Math.min(value, minLux);
+  }
+
+  function sample(){
+    // Append to end, remove from front when full
+    buffer.push(currLux);
+    if (buffer.length >= 64){
+      buffer.splice(0, 1);
+    }
+    visualize();
+  }
+
+  function visualize(){
+    var canvas = document.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      document.body.appendChild(canvas);
+    }
+    canvas.width = document.body.offsetWidth;
+    canvas.height = 480;
+    drawContext = canvas.getContext('2d');
+
+    var scale = canvas.height - canvas.height / 2;
+
+    for (var i = 0; i < buffer.length; i++) {
+      var value = buffer[i];
+
+      var nValue = (value - minLux) / (Math.max(maxLux, value) - minLux);
+      var pValue = (nValue * 240) + canvas.height / 2;
+      console.log(value, nValue, pValue);
+
+      var height = -1 * pValue;
+      var width  = 5;
+      var xOffset = canvas.width / 2 - i*5;
+      var yOffset = 480 * 1.25;
+      drawContext.fillStyle = 'black';
+      drawContext.fillRect(xOffset, yOffset, width, height);
+    }
+  }
+
+  window.addEventListener('devicelight', onLightChange);
+  window.setTimeout(function(){
+    isCalibrated = true;
+    console.warn('calibrated', minLux, maxLux);
+
+    // begin sampling
+    window.setInterval(sample, 100);
+  }, 2000)
+
+
+  </script>
 </body>
 </html>
