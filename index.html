@@ -133,7 +133,24 @@
     OpticalServer.prototype.loop = function() {
       console.log('Looping:', this.lux);
 
-      //TODO: monitor mode changes and duration, and push to .decode()
+      var modeNow = (this.lux >= this.luxThreshold) ? this.modes.LIGHT : this.modes.DARK;
+      var duration;
+      var now = Date.now();
+
+      // TODO: add timeout for flushing elapsed time to decode()
+
+      if (modeNow !== this.mode){
+
+        console.log('MODE CHANGE: ', modeNow);
+
+        duration = this.lastTime - now;
+
+        this.decode(this.mode, duration);
+
+        // Swap mode and set new time reference;
+        this.mode = modeNow;
+        this.lastTime = now;
+      }
 
       if (this.isRunning){
         _raf(this.loop.bind(this))
@@ -141,7 +158,7 @@
     }
 
     OpticalServer.prototype.decode = function(mode, duration) {
-      var symbol, op;
+      var op; // placeholder for operation to run according to mode and duration
 
       switch (mode){
         case this.modes.DARK:
