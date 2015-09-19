@@ -9,82 +9,97 @@
 
   <script>
 
-  var minLux = Infinity,
-      maxLux = 0,
-      currLux = 0,
-      isCalibrated = false,
-      buffer = [], timeout;
+  function OpticalServer(params) {
+    params = params || {};
 
-  function onLightChange(e){
-      currLux = event.value;
-      calibrate(event.value);
+    this.wpm = params.wpm || 20;  // words per minute
+    this.unit = 1200 / this.wpm; // duration of dot in Morse
+    this.luxThreshold = 1000; // min Lux value considered for light "on"
+
+    this.dotDur = this.unit;
+    this.dashDur = this.unit * 3;
+    this.breakDur = this.unit;
+    this.letterBreakDur = this.unit * 3;
+    this.wordBreakDur = this.unit * 7;
+
+    this.MORSE_TO_CHAR = {};
+
+    for (var key in this.CHAR_TO_MORSE){
+      this.MORSE_TO_CHAR[this.CHAR_TO_MORSE[key]] = key;
+    }
   }
 
-  function calibrate(value){
-    if (isCalibrated){
-      return;
-    }
-    // TODO: smooth maxLux/minLux over time, passive recalibration
-    maxLux = Math.max(value, maxLux);
-    minLux = Math.min(value, minLux);
+  OpticalServer.prototype.CHAR_TO_MORSE = {
+    "A": ".-",
+    "B": "-...",
+    "C": "-.-.",
+    "D": "-..",
+    "E": ".",
+    "F": "..-.",
+    "G": "--.",
+    "H": "....",
+    "I": "..",
+    "J": ".---",
+    "K": "-.-",
+    "L": ".-..",
+    "M": "--",
+    "N": "-.",
+    "O": "---",
+    "P": ".--.",
+    "Q": "--.-",
+    "R": ".-.",
+    "S": "...",
+    "T": "-",
+    "U": "..-",
+    "V": "...-",
+    "W": ".--",
+    "X": "-..-",
+    "Y": "-.--",
+    "Z": "--..",
+
+    "1": ".----",
+    "2": "..---",
+    "3": "...--",
+    "4": "....-",
+    "5": ".....",
+    "6": "-....",
+    "7": "--...",
+    "8": "---..",
+    "9": "----.",
+    "0": "-----"
+  };
+
+  OpticalServer.prototype.start = function() {
+
   }
 
-  function sample(){
-    // Append to end, remove from front when full
-    buffer.push(currLux);
-    if (buffer.length >= 64){
-      buffer.splice(0, 1);
-    }
-    visualize();
+  OpticalServer.prototype.stop = function() {
+
   }
 
-  function visualize(){
-    var canvas = document.querySelector('canvas');
-    if (!canvas) {
-      canvas = document.createElement('canvas');
-      document.body.appendChild(canvas);
-    }
-    canvas.width = document.body.offsetWidth;
-    canvas.height = 480;
-    context = canvas.getContext('2d');
-
-    context.beginPath();
-    context.moveTo(0, canvas.height/2);
-
-    var scale = canvas.height - canvas.height / 2;
-    var step = canvas.width * 0.5 / buffer.length;
-
-    for (var i = 0; i < buffer.length; i++) {
-      var value = buffer[i];
-
-      var nValue = (value - minLux) / (Math.max(maxLux, value) - minLux);
-      var pValue = (nValue * 240) + canvas.height / 2;
-      console.log(value, nValue, pValue);
-
-      // var height = -1 * pValue;
-      // var width  = 5;
-      // var xOffset = canvas.width / 2 - i*5;
-      // var yOffset = 480 * 1.25;
-      // context.fillStyle = 'black';
-      // context.fillRect(xOffset, yOffset, width, height);
-
-      context.lineWidth = 3;
-      context.strokeStyle = '#ff0000';
-      context.lineCap = 'round';
-      context.lineTo(i * step, 480 - pValue);
-    }
-
-    context.stroke()
+  OpticalServer.prototype.charToMorse = function(char) {
+    return this.CHAR_TO_MORSE[char];
   }
 
-  window.addEventListener('devicelight', onLightChange);
-  window.setTimeout(function(){
-    isCalibrated = true;
-    console.warn('calibrated', minLux, maxLux);
+  OpticalServer.prototype.morseToChar = function(morse) {
+    return this.MORSE_TO_CHAR[morse];
+  }
 
-    // begin sampling
-    window.setInterval(sample, 100);
-  }, 2000)
+  server = new OpticalServer();
+  console.log(server.charToMorse('A'))
+  console.log(server.morseToChar('.-'))
+
+  // OpticalServer.minLux
+  // OpticalServer.maxLux
+  // OpticalServer.timing.dot
+  // OpticalServer.timing.dash
+  // OpticalServer.timing.break
+  // OpticalServer.timing.letterBreak
+  // OpticalServer.timing.wordBreak
+  // OpticalServer.start()
+  // OpticalServer.stop()
+  // OpticalServer.on('message', cb)
+  // OpticalServer.on('character', cb)
 
 
   </script>
