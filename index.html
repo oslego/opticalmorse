@@ -121,6 +121,7 @@
       this.isRunning = true;
       this.lastTime = Date.now();
       this.mode = this.modes.LIGHT;
+      this.wordBreakCount = 0;
 
       this.loop();
     }
@@ -143,7 +144,7 @@
 
         console.log('MODE CHANGE: ', modeNow);
 
-        duration = this.lastTime - now;
+        duration = now - this.lastTime;
 
         this.decode(this.mode, duration);
 
