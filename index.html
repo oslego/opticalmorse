@@ -5,102 +5,293 @@
   <title>Optical Morse Code</title>
 </head>
 <body>
-  <h1>Optical Morse Code + <em>DeviceLight API</em></h1>
+  <h1>Optical Morse Code + DeviceLight API</h1>
 
   <script>
 
-  function OpticalServer(params) {
-    params = params || {};
+  (function(){
 
-    this.wpm = params.wpm || 20;  // words per minute
-    this.unit = 1200 / this.wpm; // duration of dot in Morse
-    this.luxThreshold = 1000; // min Lux value considered for light "on"
+    var CHAR_TO_MORSE = {
+      "A": ".-",
+      "B": "-...",
+      "C": "-.-.",
+      "D": "-..",
+      "E": ".",
+      "F": "..-.",
+      "G": "--.",
+      "H": "....",
+      "I": "..",
+      "J": ".---",
+      "K": "-.-",
+      "L": ".-..",
+      "M": "--",
+      "N": "-.",
+      "O": "---",
+      "P": ".--.",
+      "Q": "--.-",
+      "R": ".-.",
+      "S": "...",
+      "T": "-",
+      "U": "..-",
+      "V": "...-",
+      "W": ".--",
+      "X": "-..-",
+      "Y": "-.--",
+      "Z": "--..",
 
-    this.dotDur = this.unit;
-    this.dashDur = this.unit * 3;
-    this.breakDur = this.unit;
-    this.letterBreakDur = this.unit * 3;
-    this.wordBreakDur = this.unit * 7;
+      "1": ".----",
+      "2": "..---",
+      "3": "...--",
+      "4": "....-",
+      "5": ".....",
+      "6": "-....",
+      "7": "--...",
+      "8": "---..",
+      "9": "----.",
+      "0": "-----"
+    };
 
-    this.MORSE_TO_CHAR = {};
-
-    for (var key in this.CHAR_TO_MORSE){
-      this.MORSE_TO_CHAR[this.CHAR_TO_MORSE[key]] = key;
+    // build reverse mapping Morse code to alpha-numeric
+    var MORSE_TO_CHAR = {};
+    for (var key in CHAR_TO_MORSE){
+      MORSE_TO_CHAR[CHAR_TO_MORSE[key]] = key;
     }
-  }
 
-  OpticalServer.prototype.CHAR_TO_MORSE = {
-    "A": ".-",
-    "B": "-...",
-    "C": "-.-.",
-    "D": "-..",
-    "E": ".",
-    "F": "..-.",
-    "G": "--.",
-    "H": "....",
-    "I": "..",
-    "J": ".---",
-    "K": "-.-",
-    "L": ".-..",
-    "M": "--",
-    "N": "-.",
-    "O": "---",
-    "P": ".--.",
-    "Q": "--.-",
-    "R": ".-.",
-    "S": "...",
-    "T": "-",
-    "U": "..-",
-    "V": "...-",
-    "W": ".--",
-    "X": "-..-",
-    "Y": "-.--",
-    "Z": "--..",
+    function OpticalServer(params) {
+      params = params || {};
 
-    "1": ".----",
-    "2": "..---",
-    "3": "...--",
-    "4": "....-",
-    "5": ".....",
-    "6": "-....",
-    "7": "--...",
-    "8": "---..",
-    "9": "----.",
-    "0": "-----"
-  };
+      this.wpm = params.wpm || 20;  // words per minute
+      this.unit = 1200 / this.wpm; // duration of dot (milliseconds) in Morse Code
+      this.luxThreshold = 1000; // min Lux value considered for "light on" vs "light off"
+      this.callbacks = {};
+      this.times = {
+        // light
+        dot: this.unit,
+        dash: this.unit * 3,
 
-  OpticalServer.prototype.start = function() {
+        // dark
+        break: this.unit,
+        charBreak: this.unit * 3,
+        wordBreak: this.unit * 7,
+      }
+      this.modes = {
+        DARK: "dark",
+        LIGHT: "light"
+      }
+      this.buffer = []; // temp array of morse code symbols as they are decoded
+      this.mode; // current mode, one of "light" or "dark"
+      this.isRunning = false;
+      this.lastTime; // UTC milliseconds time when mode last changed between "dark" and "light"
+      this.lux = 0; // last known lux value from this.onLightChange()
+      this.wordBreakCount = 0; // count of consecutive pauses between words (used to infer if signal paused)
 
-  }
+      var scope = this;
 
-  OpticalServer.prototype.stop = function() {
+      window.addEventListener('devicelight', this.onLightChange.bind(this));
+    }
 
-  }
+    /*
+      Event handler for 'devicelight' event.
+      Store the latest lux value of the light intensity.
+      It the server isn't already running, start monitoring for optical morse code
+      patterns if the lux value is above the threshold to qualify for a light pulse.
+    */
+    OpticalServer.prototype.onLightChange = function(e){
+      this.lux = e.value;
 
-  OpticalServer.prototype.charToMorse = function(char) {
-    return this.CHAR_TO_MORSE[char];
-  }
+      if (this.isRunning == false && this.lux >= this.luxThreshold){
+        this.start();
+        console.warn('start the server!')
+      }
+    };
 
-  OpticalServer.prototype.morseToChar = function(morse) {
-    return this.MORSE_TO_CHAR[morse];
-  }
+    OpticalServer.prototype.on = function(event, callback) {
+      if (event === "character"){
+        this.callbacks.character = callback;
+      }
+    }
+
+    OpticalServer.prototype.fire = function(callback, arg) {
+      if (typeof(callback) === 'function') {
+        callback(arg);
+      }
+    }
+
+    OpticalServer.prototype.start = function() {
+      this.isRunning = true;
+      this.lastTime = Date.now();
+      this.mode = this.modes.LIGHT;
+
+      this.loop();
+    }
+
+    OpticalServer.prototype.stop = function() {
+      console.warn('STOP');
+      this.isRunning = false;
+    }
+
+    OpticalServer.prototype.loop = function() {
+      console.log('Looping:', this.lux);
+
+      //TODO: monitor mode changes and duration, and push to .decode()
+
+      if (this.isRunning){
+        _raf(this.loop.bind(this))
+      }
+    }
+
+    OpticalServer.prototype.decode = function(mode, duration) {
+      var symbol, op;
+
+      switch (mode){
+        case this.modes.DARK:
+          // break within character
+          if (duration >= this.times.break) {
+            op = function() {
+              this.buffer.push('');
+
+              // used for testing
+              return "OP_BREAK";
+            }
+          }
+
+          // break between characters
+          if (duration >= this.times.charBreak) {
+            op = function(){
+              var char = this.morseToChar(this.buffer.join(''));
+
+              if (!char) {
+                console.error('Unknown character for code:', this.buffer.join(''));
+              } else {
+                this.fire(this.callbacks.character, char);
+
+                // reset consecutive word break count
+                this.wordBreakCount = 0;
+              }
+
+              // reset morse code symbols buffer;
+              this.buffer.length = 0;
+
+              // used for testing
+              return "OP_CHAR_BREAK"
+            }
+          }
+
+          // break between words
+          if (duration >= this.times.wordBreak) {
+            op = function(){
+              // increment consecutive word break count;
+              this.wordBreakCount++;
+
+              // last char of the word; decode and send it
+              if (this.wordBreakCount <= 1){
+                var char = this.morseToChar(this.buffer.join(''));
+
+                if (!char) {
+                  console.error('Unknown character for code:', this.buffer.join(''));
+                } else {
+                  // include space after last char of word
+                  char = char + " ";
+                  this.fire(this.callbacks.character, char);
+                }
+              // consecutive word breaks
+              } else {
+                // TODO: run server.stop() after X iterations
+                console.warn('Word breaks: ', this.wordBreakCount);
+              }
+
+              // reset morse code symbols buffer;
+              this.buffer.length = 0;
+
+              // used for testing
+              return "OP_WORD_BREAK"
+            }
+          }
+        break;
+
+        // be more leninent with checking light durations
+        case this.modes.LIGHT:
+          // fallback
+          op = function(){ console.warn('noop') }
+
+          if (duration >= this.times.dot * 0.75) {
+            op = function() {
+              this.buffer.push('.');
+
+              return "OP_DOT";
+            }
+          }
+
+          if (duration >= this.times.dash * 0.75) {
+            op = function() {
+              this.buffer.push('-');
+
+              return "OP_DASH";
+            }
+          }
+        break;
+      }
+
+      // run prevailing operation; returns string value for testing
+      return op.call(this);
+    }
+
+    OpticalServer.prototype.charToMorse = function(char) {
+      return CHAR_TO_MORSE[char];
+    }
+
+    OpticalServer.prototype.morseToChar = function(morse) {
+      return MORSE_TO_CHAR[morse];
+    }
+
+    /**
+     * A request animation frame shortcut. This one is intended to work even in
+     * background pages of an extension.
+     */
+    function _raf(callback) {
+      var isCrx = !!(window.chrome && chrome.extension);
+      if (isCrx) {
+        setTimeout(callback, 1000/60);
+      } else {
+        requestAnimationFrame(callback);
+      }
+    };
+
+    // expose global
+    window.OpticalServer = OpticalServer;
+
+  })()
 
   server = new OpticalServer();
-  console.log(server.charToMorse('A'))
-  console.log(server.morseToChar('.-'))
+  server.on('character', function(char){
+    console.info('Incoming: ', char)
+  })
 
-  // OpticalServer.minLux
-  // OpticalServer.maxLux
-  // OpticalServer.timing.dot
-  // OpticalServer.timing.dash
-  // OpticalServer.timing.break
-  // OpticalServer.timing.letterBreak
-  // OpticalServer.timing.wordBreak
-  // OpticalServer.start()
-  // OpticalServer.stop()
-  // OpticalServer.on('message', cb)
-  // OpticalServer.on('character', cb)
+  // TESTING -----------------------------------
 
+  // CONVERTORS
+  console.assert("A"  == server.morseToChar('.-'), "Morse to Char");
+  console.assert(".-" == server.charToMorse('A'), "Char to Morse");
+
+  // DARK
+  console.assert("OP_BREAK"      == server.decode(server.modes.DARK, server.times.break), "OP_BREAK");
+  server.buffer.push('.-'); // A
+  console.assert("OP_CHAR_BREAK" == server.decode(server.modes.DARK, server.times.charBreak), "OP_CHAR_BREAK");
+  server.buffer.push('.-'); // A
+  console.assert("OP_WORD_BREAK" == server.decode(server.modes.DARK, server.times.wordBreak), "OP_WORD_BREAK");
+
+  // LIGHT
+  server.buffer.length = 0;
+  console.assert("OP_DOT"  == server.decode(server.modes.LIGHT, server.times.dot), "OP_DOT");
+  console.assert("."  == server.buffer.join(''), "BUFFER_DOT");
+  console.assert("OP_DOT"  == server.decode(server.modes.LIGHT, server.times.dot * 0.75), "OP_DOT lenient");
+  console.assert(".."  == server.buffer.join(''), "BUFFER_DOT_DOUBLE");
+
+  server.buffer.length = 0;
+  console.assert("OP_DASH"  == server.decode(server.modes.LIGHT, server.times.dash), "OP_DASH");
+  console.assert("-"  == server.buffer.join(''), "BUFFER_DASH");
+  console.assert("OP_DASH"  == server.decode(server.modes.LIGHT, server.times.dash * 0.75), "OP_DASH lenient");
+  console.assert("--"  == server.buffer.join(''), "BUFFER_DASH_DOUBLE");
 
   </script>
 </body>
