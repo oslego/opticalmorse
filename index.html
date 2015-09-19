@@ -62,7 +62,7 @@
 
       this.wpm = params.wpm || 20;  // words per minute
       this.unit = 1200 / this.wpm; // duration of dot (milliseconds) in Morse Code
-      this.luxThreshold = 1000; // min Lux value considered for "light on" vs "light off"
+
       this.callbacks = {};
       this.times = {
         // light
@@ -80,12 +80,12 @@
       }
       this.buffer = []; // temp array of morse code symbols as they are decoded
       this.mode; // current mode, one of "light" or "dark"
-      this.isRunning = false;
-      this.lastTime; // UTC milliseconds time when mode last changed between "dark" and "light"
-      this.lux = 0; // last known lux value from this.onLightChange()
-      this.wordBreakCount = 0; // count of consecutive pauses between words (used to infer if signal paused)
-
-      var scope = this;
+      this.isRunning = false; // flag for monitoring light variation as morse code
+      this.lastTime; // UTC time (milliseconds) when mode last changed between "dark" and "light"
+      this.lux = 0; // last known lux value from 'devicelight' event
+      this.luxThreshold = 1000; // min lux value considered as light signal
+      this.wordBreakCount = 0; // count of consecutive workd breaks
+      this.wordBreakCountLimit = 10 // number of consecutive word breaks after which to pause monitoring
 
       window.addEventListener('devicelight', this.onLightChange.bind(this));
     }
@@ -194,14 +194,14 @@
                   char = char + " ";
                   this.fire(this.callbacks.character, char);
                 }
-              // consecutive word breaks
-              } else {
-                // TODO: run server.stop() after X iterations
-                console.warn('Word breaks: ', this.wordBreakCount);
+
+                this.buffer.length = 0;
               }
 
-              // reset morse code symbols buffer;
-              this.buffer.length = 0;
+              if (this.wordBreakCountLimit > 5) {
+                this.stop();
+                console.warn('Word breaks: ', this.wordBreakCount);
+              }
 
               // used for testing
               return "OP_WORD_BREAK"
@@ -269,6 +269,8 @@
 
   // TESTING -----------------------------------
 
+  console.group('testing')
+
   // CONVERTORS
   console.assert("A"  == server.morseToChar('.-'), "Morse to Char");
   console.assert(".-" == server.charToMorse('A'), "Char to Morse");
@@ -292,6 +294,8 @@
   console.assert("-"  == server.buffer.join(''), "BUFFER_DASH");
   console.assert("OP_DASH"  == server.decode(server.modes.LIGHT, server.times.dash * 0.75), "OP_DASH lenient");
   console.assert("--"  == server.buffer.join(''), "BUFFER_DASH_DOUBLE");
+
+  console.groupEnd('')
 
   </script>
 </body>
