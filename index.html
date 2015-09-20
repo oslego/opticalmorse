@@ -173,7 +173,7 @@
           this.decode(this.mode, duration);
           this.lastTime = Date.now();
           this.timeout = clearTimeout(this.timeout);
-        }.bind(this), this.times.wordBreak);
+        }.bind(this), this.times.wordBreak * 2);
       }
 
       if (this.isRunning){
@@ -190,7 +190,6 @@
           if (duration >= this.times.break * 0.5) {
             op = function() {
               this.buffer.push('');
-
               // used for testing
               return "OP_BREAK";
             }
@@ -199,6 +198,7 @@
           // break between characters
           if (duration >= this.times.charBreak * 0.5) {
             op = function(){
+
               var char = this.morseToChar(this.buffer.join(''));
 
               if (!char) {
@@ -224,12 +224,9 @@
               // increment consecutive word break count;
               this.wordBreakCount++;
 
-              console.warn('buffer: ', this.buffer.join(''))
+              console.warn(this.wordBreakCount, 'buffer: ', this.buffer.join(''))
 
-              // last char of the word; decode and send it
-              if (this.wordBreakCount <= 1){
-
-
+              if (this.buffer.length){
                 var char = this.morseToChar(this.buffer.join(''));
 
                 if (!char) {
@@ -238,6 +235,7 @@
                   // include space after last char of word
                   char = char + " ";
                   this.fire(this.callbacks.character, char);
+                  this.wordBreakCount = 0;
                 }
 
                 this.buffer.length = 0;
@@ -245,7 +243,6 @@
 
               if (this.wordBreakCount >= this.wordBreakCountLimit) {
                 this.stop();
-                console.warn('Word breaks: ', this.wordBreakCount);
               }
 
               // used for testing
@@ -263,8 +260,6 @@
             op = function() {
               this.buffer.push('.');
 
-              console.log('pushdot', this.buffer)
-
               return "OP_DOT";
             }
           }
@@ -273,15 +268,11 @@
             op = function() {
               this.buffer.push('-');
 
-              console.log('pushdash', this.buffer)
-
               return "OP_DASH";
             }
           }
         break;
       }
-
-      console.log('DURATIOn', duration, mode, this.times.dot);
 
       // run prevailing operation; returns string value for testing
       return op.call(this);
