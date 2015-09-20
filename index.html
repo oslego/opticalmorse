@@ -7,7 +7,8 @@
 <body>
   <h1>Optical Morse Code + DeviceLight API</h1>
 
-  <div id="output"></div>
+  <em>Message:</em>
+  <h2 id="output"></h2>
 
   <script>
 
@@ -279,7 +280,7 @@
     }
 
     OpticalServer.prototype.charToMorse = function(char) {
-      return CHAR_TO_MORSE[char];
+      return CHAR_TO_MORSE[char.toUpperCase()];
     }
 
     OpticalServer.prototype.morseToChar = function(morse) {
@@ -321,8 +322,6 @@
     }
 
     var interval, timeout;
-
-
     var char = arr.shift();
     var duration;
     var lux;
@@ -361,7 +360,36 @@
     }, duration);
   }
 
-  emit('.|. -/. '.split(''))
+  // emit('.|. -/. '.split(''))
+  // emit(transform('... .- -.../-- .. .-.. .-.. . .-./'))
+
+  function strToMorse(string){
+    return string.split('').map(function(c){
+      if (c === ' '){
+        return '/'
+      }
+      return server.charToMorse(c) + ' ';
+    }).join('')
+  }
+
+  function transform(str){
+    return str.split('').map(function(c){
+      if (c == '/') {
+        return c
+      }
+      if (c === ' ') {
+        return '|'
+      }
+
+      return c + ' '}).join('').split('').concat('/');
+  }
+
+  var message = strToMorse('paris');
+      message = transform(message);
+
+      console.log(message)
+
+  emit(message);
 
   // TESTING -----------------------------------
 
