@@ -60,12 +60,12 @@
     this.times = {
       // light
       dot: this.unit,
-      dash: this.unit * 2,
+      dash: this.unit * 2, // this.unit * 3
 
       // dark
       break: this.unit,
-      charBreak: this.unit * 3,
-      wordBreak: this.unit * 5,
+      charBreak: this.unit * 2, // this.unit * 3
+      wordBreak: this.unit * 5, // this.unit * 7,
     }
     this.modes = {
       DARK: "dark",
@@ -176,7 +176,7 @@
         this.decode(this.mode, duration);
         this.lastTime = Date.now();
         this.timeout = clearTimeout(this.timeout);
-      }.bind(this), this.times.wordBreak * 2);
+      }.bind(this), this.times.wordBreak);
     }
 
     if (this.isRunning){
@@ -195,7 +195,6 @@
         // break within character
         if (duration >= this.times.break * 0.75) {
           op = function() {
-            this.buffer.push('');
             // used for testing
             return "OP_BREAK";
           }
@@ -208,7 +207,7 @@
             var char = this.morseToChar(this.buffer.join(''));
 
             if (!char) {
-              // console.error('Unknown character for code:', this.buffer.join(''));
+              console.error('Unknown character for code:', this.buffer.join(''));
             } else {
               this.fire(this.callbacks.character, char);
 
@@ -236,7 +235,7 @@
               var char = this.morseToChar(this.buffer.join(''));
 
               if (!char) {
-                // console.error('Unknown character for code:', this.buffer.join(''));
+                console.error('Unknown character for code:', this.buffer.join(''));
               } else {
                 // include space after last char of word
                 char = char + " ";
