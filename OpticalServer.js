@@ -54,18 +54,15 @@
 
     this.callbacks = {};
 
-    // FIXME: remove manual overrides
-    this.unit = 600;
-
     this.times = {
       // light
       dot: this.unit,
-      dash: this.unit * 2, // this.unit * 3
+      dash: this.unit * 3,
 
       // dark
       break: this.unit,
-      charBreak: this.unit * 2, // this.unit * 3
-      wordBreak: this.unit * 5, // this.unit * 7,
+      charBreak: this.unit * 3,
+      wordBreak: this.unit * 7,
     }
     this.modes = {
       DARK: "dark",
@@ -190,8 +187,9 @@
     switch (mode){
       case this.modes.DARK:
         // fallback
-        // op = function(){ console.warn('noop DARK, duration: ', duration, 'times: ', this.times) }
+        op = function(){ console.warn('noop DARK, duration: ', duration, 'times: ', this.times) }
 
+        // FIXME: remove because it's not used
         // break within character
         if (duration >= this.times.break * 0.75) {
           op = function() {
@@ -259,7 +257,7 @@
       // be more leninent with checking light durations
       case this.modes.LIGHT:
         // fallback
-        // op = function(){ console.warn('noop LIGHT, duration: ', duration, 'times: ', this.times) }
+        op = function(){ console.warn('noop LIGHT, duration: ', duration, 'times: ', this.times) }
 
         if (duration <= this.times.dot * 1.25) {
           op = function() {
